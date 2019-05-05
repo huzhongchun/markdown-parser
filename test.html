@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" id="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+      <meta name="format-detection" content="telephone=no"/>
+      <meta name="format-detection" content="address=no">
+    <title>Marked Demo</title>
+      <style>
+          html{
+              word-break: break-all;
+              line-height: 1.5;
+              font-size: 18px;
+          }
+          .mark-paragraph{
+              margin: 10px 0;
+
+          }
+          .mark-space{
+              display: block;
+              height: 10px;
+          }
+          .mark-heading{
+              font-weight: bold;
+          }
+          .mark-heading-1{
+              font-size: 20px;
+          }
+          .mark-heading-2{
+              font-size: 18px;
+          }
+          .mark-heading-3{
+              font-size: 16px;
+          }
+          .mark-strong{
+              font-weight: bold;
+          }
+          .mark-list{
+              padding-left: 20px;
+          }
+          .mark-list.list-ordered-true{
+              list-style: decimal;
+          }
+          .mark-list-item{
+              margin: 10px 0;
+          }
+          .mark-blockquote{
+              padding: 10px 10px 10px 20px;
+              border-left: 4px solid #ccc;
+              background: #ddd;
+          }
+          .mark-italic{
+              font-style: italic;
+          }
+          .word-item{
+              margin: 0 3px;
+          }
+          .word-item.active{
+              background: #ff6000;
+          }
+
+          .word-box{
+              position: fixed;
+              top:0;
+              left: 0;
+              width: 100%;
+              height: 100%;
+              z-index: 2;
+              background: rgba(0,0,0,.1);
+              display: none;
+          }
+          .word-box .word-content{
+              position: absolute;
+              width: 100%;
+              background: #fff;
+              border-top-left-radius: 15px;
+              border-top-right-radius: 15px;
+              min-height: 150px;
+              box-sizing: border-box;
+              left: 0;
+              bottom: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              font-size: 16px;
+              padding: 20px;
+          }
+
+          #container>div{
+              margin-bottom: 15px;
+          }
+      </style>
+  </head>
+
+  <body>
+    <header>
+      <h1>Marked Demo</h1>
+    </header>
+    <div id="container" style="padding: 40px;"></div>
+    <div class="word-box">
+        <div class="word-content"></div>
+    </div>
+    <script src="//resource-thefair.oss-cn-qingdao.aliyuncs.com/_assets/framework/lib/zepto2018.min.js?v=15506610677680"></script>
+    <script src="./marked.js"></script>
+    <script>
+        var markdownText = `
+bota ([西]酒袋) holding on to a
+`;
+
+        let tokens = marked.lexer(markdownText);
+//        console.log(tokens);
+        let result = marked.parser(tokens);
+        console.log(result);
+        document.getElementById('container').innerHTML = parseNodeTreeJson(result);
+
+
+
+        function parseNodeTreeJson (nodeList) {
+            var handleNodeList = nodeList || [], resultHtml = '';
+            while (handleNodeList.length > 0){
+              var item = handleNodeList.shift();
+              switch (item.type){
+                case 'space':  //换行
+                  resultHtml += '<div class="mark-space"></div>';
+                  break;
+                case 'heading':  //标题
+                  resultHtml += '<div class="mark-heading mark-heading-'+item.depth+'">'+(parseNodeTreeJson(item.children || []) || '')+'</div>';
+                  break;
+                case 'paragraph':  //段落
+                  resultHtml += '<div class="mark-paragraph">'+(parseNodeTreeJson(item.children || []) || '')+'</div>';
+                  break;
+                case 'strong':  //加粗
+                  resultHtml += '<span class="mark-strong">'+(parseNodeTreeJson(item.children || []) || '')+'</span>';
+                  break;
+                case 'italic':  //斜体
+                  resultHtml += '<span class="mark-italic">'+(parseNodeTreeJson(item.children || []) || '')+'</span>';
+                  break;
+                case 'text':  //文本
+                  if(item.content) {
+                    var content = splitText(item.content);
+                    resultHtml += '<span class="mark-text">' + (content || '') + '</span>';
+                  }
+                  break;
+                case 'image':  //图片
+                  resultHtml += '<img class="mark-img" src="'+item.src+'" title="'+item.title+'" alt="'+item.text+'" />';
+                  break;
+                case 'blockquote':  //引用
+                  resultHtml += '<div class="mark-blockquote">'+(parseNodeTreeJson(item.children || []) || '')+'</div>';
+                  break;
+                case 'list':  //列表
+                  resultHtml += '<ul class="mark-list list-ordered-'+item.ordered+'">'+(parseNodeTreeJson(item.children || []) || '')+'</ul>';
+                  break;
+                case 'list_item':  //列表项
+                  resultHtml += '<li class="mark-list-item">'+(parseNodeTreeJson(item.children || []) || '')+'</li>';
+                  break;
+              }
+            }
+
+            return resultHtml;
+        }
+
+        function select (e) {
+            console.log(e)
+        }
+
+
+        $('.word-box').click(function () {
+          console.log(1)
+          $(this).hide();
+          $('.active').removeClass('active')
+        })
+
+        var clicked = [];
+        $('#container').on('touchstart','.word-item',function (e) {
+          var time = +new Date();
+          if(clicked[0]){
+             if(time - clicked[0] <= 500){ //双击
+               console.log(this);
+               var _this = this;
+               $('.active').removeClass('active')
+               $(this).addClass('active');
+               setTimeout(function () {
+                 $('.word-box .word-content').html($(_this).clone());
+                 $('.word-box').show()
+               },100)
+             }
+            clicked = [];
+          }else{
+            clicked.push(time)
+          }
+
+        })
+
+        function splitText (text) {
+          var list = text.split(' '), result = '';
+          list.forEach(function (item) {
+            result += '<span class="word-item">'+item+'</span>';
+          })
+          return result;
+        }
+
+
+
+
+        function  parseMarkdown(markdownText) {
+          let tokens = marked.lexer(markdownText);
+          return marked.parser(tokens);
+        }
+        let contentList = [
+          {
+            "start": "7.82",
+            "end": "15.08",
+            "type": "text",
+            "content": "# **PART I.**",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231077
+          },
+          {
+            "start": "15.08",
+            "end": "18.86",
+            "type": "text",
+            "content": "(*Being a reprint from the reminiscences of* JOHN H. WATSON, M.D., *late of the Army Medical Department.*)",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231078
+          },
+          {
+            "start": "18.86",
+            "end": "21.72",
+            "type": "text",
+            "content": "## **CHAPTER I. MR. SHERLOCK HOLMES.**",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231079
+          },
+          {
+            "start": "21.72",
+            "end": "34.32",
+            "type": "text",
+            "content": "### **Chapter 1.1**",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231080
+          },
+          {
+            "start": "34.32",
+            "end": "41.84",
+            "type": "text",
+            "content": "IN the year 1878 I took my degree of Doctor of Medicine of the University of London, and proceeded to Netley to go through the course prescribed for surgeons in the army.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231081
+          },
+          {
+            "start": "41.84",
+            "end": "49.24",
+            "type": "text",
+            "content": "Having completed my studies there, I was duly attached to the Fifth Northumberland Fusiliers as Assistant Surgeon.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231082
+          },
+          {
+            "start": "49.24",
+            "end": "56.46",
+            "type": "text",
+            "content": "The regiment was stationed in India at the time, and before I could join it, the second Afghan war had broken out.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231083
+          },
+          {
+            "start": "56.46",
+            "end": "70.29",
+            "type": "text",
+            "content": "On landing at Bombay, I learned that my corps had advanced through the passes, and was already deep in the enemy’s country.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231084
+          },
+          {
+            "start": "70.29",
+            "end": "78.11",
+            "type": "text",
+            "content": "I followed, however, with many other officers who were in the same situation as myself, and succeeded in reaching Candahar in safety, where I found my regiment, and at once entered upon my new duties.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231085
+          },
+          {
+            "start": "78.11",
+            "end": "85.47",
+            "type": "text",
+            "content": "The campaign brought honours and promotion to many, but for me it had nothing but misfortune and disaster.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231086
+          },
+          {
+            "start": "85.47",
+            "end": "93.64",
+            "type": "text",
+            "content": "I was removed from my brigade and attached to the Berkshires, with whom I served at the fatal battle of Maiwand.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231087
+          },
+          {
+            "start": "93.64",
+            "end": "107.99",
+            "type": "text",
+            "content": "There I was struck on the shoulder by a Jezail bullet, which shattered the bone and grazed the subclavian artery.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231088
+          },
+          {
+            "start": "107.99",
+            "end": "119.73",
+            "type": "text",
+            "content": "I should have fallen into the hands of the murderous Ghazis had it not been for the devotion and courage shown by Murray, my orderly, who threw me across a pack-horse, and succeeded in bringing me safely to the British lines.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231089
+          },
+          {
+            "start": "119.73",
+            "end": "134.43",
+            "type": "text",
+            "content": "Worn with pain, and weak from the prolonged hardships which I had undergone, I was removed, with a great train of wounded sufferers, to the base hospital at Peshawar.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231090
+          },
+          {
+            "start": "134.43",
+            "end": "148.39",
+            "type": "text",
+            "content": "Here I rallied, and had already improved so far as to be able to walk about the wards, and even to bask a little upon the verandah, when I was struck down by enteric fever, that curse of our Indian possessions.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231091
+          },
+          {
+            "start": "148.39",
+            "end": "164.68",
+            "type": "text",
+            "content": "For months my life was despaired of, and when at last I came to myself and became convalescent, I was so weak and emaciated that a medical board determined that not a day should be lost in sending me back to England.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231092
+          },
+          {
+            "start": "164.68",
+            "end": "176.22",
+            "type": "text",
+            "content": "I was dispatched, accordingly, in the troopship “Orontes,” and landed a month later on Portsmouth jetty, with my health irretrievably ruined, but with permission from a paternal government to spend the next nine months in attempting to improve it.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231093
+          },
+          {
+            "start": "176.22",
+            "end": "186.96",
+            "type": "text",
+            "content": "I had neither kith nor kin in England, and was therefore as free as air—or as free as an income of eleven shillings and sixpence a day will permit a man to be.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231094
+          },
+          {
+            "start": "186.96",
+            "end": "199.2",
+            "type": "text",
+            "content": "Under such circumstances, I naturally gravitated to London, that great cesspool into which all the loungers and idlers of the Empire are irresistibly drained.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231095
+          },
+          {
+            "start": "199.2",
+            "end": "212.04",
+            "type": "text",
+            "content": "There I stayed for some time at a private hotel in the Strand, leading a comfortless, meaningless existence, and spending such money as I had, considerably more freely than I ought.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231096
+          },
+          {
+            "start": "212.04",
+            "end": "223.17",
+            "type": "text",
+            "content": "So alarming did the state of my finances become, that I soon realized that I must either leave the metropolis and rusticate somewhere in the country, or that I must make a complete alteration in my style of living.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231097
+          },
+          {
+            "start": "223.17",
+            "end": "237.37",
+            "type": "text",
+            "content": "Choosing the latter alternative, I began by making up my mind to leave the hotel, and to take up my quarters in some less pretentious and less expensive domicile.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231098
+          },
+          {
+            "start": "237.37",
+            "end": "244.31",
+            "type": "text",
+            "content": "On the very day that I had come to this conclusion, I was standing at the Criterion Bar, when some one tapped me on the shoulder, and turning round I recognized young Stamford, who had been a dresser under me at Barts.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231099
+          },
+          {
+            "start": "244.31",
+            "end": "255.75",
+            "type": "text",
+            "content": "The sight of a friendly face in the great wilderness of London is a pleasan t thing indeed to a lonely man.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231100
+          },
+          {
+            "start": "255.75",
+            "end": "263.04",
+            "type": "text",
+            "content": "[04:04.31]In old days Stamford had never been a particular crony of mine, but now I hailed him with enthusiasm, and he, in his turn, appeared to be delighted to see me.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231101
+          },
+          {
+            "start": "263.04",
+            "end": "271.48",
+            "type": "text",
+            "content": "In the exuberance of my joy, I asked him to lunch with me at the Holborn, and we started off together in a hansom.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231102
+          },
+          {
+            "start": "271.48",
+            "end": "274.64",
+            "type": "text",
+            "content": "“Whatever have you been doing with yourself, Watson?” he asked in undisguised wonder, as we rattled through the crowded London streets.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231103
+          },
+          {
+            "start": "274.64",
+            "end": "282.67",
+            "type": "text",
+            "content": "“You are as thin as a lath and as brown as a nut.”",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231104
+          },
+          {
+            "start": "282.67",
+            "end": "290.5",
+            "type": "text",
+            "content": "I gave him a short sketch of my adventures, and had hardly concluded it by the time that we reached our destination.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231105
+          },
+          {
+            "start": "290.5",
+            "end": "299.62",
+            "type": "text",
+            "content": "“Poor devil!” he said, commiseratingly, after he had listened to my misfortunes. “What are you up to now?”",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231106
+          },
+          {
+            "start": "299.62",
+            "end": "306.79",
+            "type": "text",
+            "content": "“Looking for lodgings.” I answered. “Trying to solve the problem as to whether it is possible to get comfortable rooms at a reasonable price.”",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231107
+          },
+          {
+            "start": "306.79",
+            "end": "310.36",
+            "type": "text",
+            "content": "“That’s a strange thing,” remarked my companion; “you are the second man to-day that has used that expression to me.”",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231108
+          },
+          {
+            "start": "310.36",
+            "end": "325.29",
+            "type": "text",
+            "content": "“And who was the first?” I asked.",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231109
+          },
+          {
+            "start": "325.29",
+            "end": "1547",
+            "type": "text",
+            "content": "[05:24.78]“A fellow who is working at the chemical laboratory up at the hospital. He was bemoaning himself this morning because he could not get someone to go halves with him in some nice rooms which he had found, and which were too much for his purse.”",
+            "chapter_id": 891,
+            "analysis": null,
+            "id": 231110
+          }
+        ], nodeList1 = [], tpl = '';
+
+//        for(let i=0;i<contentList.length;i++){
+//          let json = parseMarkdown(contentList[i].content);
+//          tpl += '<div>'+parseNodeTreeJson(json)+'</div>';
+//          nodeList1.push(json);
+//        }
+
+
+//        document.getElementById('container').innerHTML = tpl;
+
+    </script>
+  </body>
+
+</html>
